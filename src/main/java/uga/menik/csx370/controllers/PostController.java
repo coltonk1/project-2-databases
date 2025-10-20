@@ -7,8 +7,10 @@ package uga.menik.csx370.controllers;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,7 +20,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 
 import uga.menik.csx370.models.ExpandedPost;
-import uga.menik.csx370.utility.Utility;
+import uga.menik.csx370.services.PostService;
+import uga.menik.csx370.services.UserService;
 
 /**
  * Handles /post URL and its sub urls.
@@ -26,7 +29,12 @@ import uga.menik.csx370.utility.Utility;
 @Controller
 @RequestMapping("/post")
 public class PostController {
+    private final PostService postService;
 
+    @Autowired
+    public PostController(UserService userService, PostService postService) {
+        this.postService = postService;
+    }
     /**
      * This function handles the /post/{postId} URL.
      * This handlers serves the web page for a specific post.
@@ -46,7 +54,12 @@ public class PostController {
 
         // Following line populates sample data.
         // You should replace it with actual data from the database.
-        List<ExpandedPost> posts = Utility.createSampleExpandedPostWithComments();
+        List<ExpandedPost> posts = null;
+        try {
+            posts = postService.getExpandedPostsById(postId);
+        } catch (SQLException error2) {
+            System.out.println(error2.getMessage());
+        }
         mv.addObject("posts", posts);
 
         // If an error occured, you can set the following property with the

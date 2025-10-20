@@ -7,6 +7,7 @@ package uga.menik.csx370.controllers;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,13 +87,28 @@ public class PeopleController {
         System.out.println("\tuserId: " + userId);
         System.out.println("\tisFollow: " + isFollow);
 
-        // Redirect the user if the comment adding is a success.
-        // return "redirect:/people";
+        try {
+            boolean nowFollowed;
+            // I didnt realize isFollow was a thing so the toggleFollow could be split into 2 functions to be optimized.
+            if (isFollow) {
+                nowFollowed = true;
+                peopleService.toggleFollow(userService.getLoggedInUser().getUserId(), userId); // follow
+            } else {
+                nowFollowed = false;
+                peopleService.toggleFollow(userService.getLoggedInUser().getUserId(), userId); // unfollow
+            }
 
-        // Redirect the user with an error message if there was an error.
-        String message = URLEncoder.encode("Failed to (un)follow the user. Please try again.",
-                StandardCharsets.UTF_8);
-        return "redirect:/people?error=" + message;
+            String message = URLEncoder.encode(
+                nowFollowed ? "User followed" : "User unfollowed",
+                StandardCharsets.UTF_8
+            );
+            return "redirect:/people?success=" + message;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            String message = URLEncoder.encode("Failed to (un)follow the user. Please try again.", StandardCharsets.UTF_8);
+            return "redirect:/people?error=" + message;
+        }
     }
 
 }

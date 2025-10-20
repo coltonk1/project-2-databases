@@ -5,10 +5,10 @@ This is a project developed by Dr. Menik to give the students an opportunity to 
 */
 package uga.menik.csx370.controllers;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,7 +17,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 
 import uga.menik.csx370.models.Post;
-import uga.menik.csx370.utility.Utility;
+import uga.menik.csx370.services.PostService;
+import uga.menik.csx370.services.UserService;
 
 /**
  * This controller handles the home page and some of it's sub URLs.
@@ -25,7 +26,14 @@ import uga.menik.csx370.utility.Utility;
 @Controller
 @RequestMapping
 public class HomeController {
+    private final UserService userService;
+    private final PostService postService;
 
+    @Autowired
+    public HomeController(UserService userService, PostService postService) {
+        this.userService = userService;
+        this.postService = postService;
+    }
     /**
      * This is the specific function that handles the root URL itself.
      * 
@@ -40,7 +48,12 @@ public class HomeController {
 
         // Following line populates sample data.
         // You should replace it with actual data from the database.
-        List<Post> posts = Utility.createSamplePostsListWithoutComments();
+        List<Post> posts = null;
+        try {
+            posts = postService.getPostsWithoutComments(userService.getLoggedInUser().getUserId());
+        } catch (SQLException error2) {
+            System.out.println(error2.getMessage());
+        }
         mv.addObject("posts", posts);
 
         // If an error occured, you can set the following property with the
@@ -71,10 +84,18 @@ public class HomeController {
         // Redirect the user if the post creation is a success.
         // return "redirect:/";
 
-        // Redirect the user with an error message if there was an error.
-        String message = URLEncoder.encode("Failed to create the post. Please try again.",
-                StandardCharsets.UTF_8);
-        return "redirect:/?error=" + message;
+        try {
+            postService.createPost(postText, userService.getLoggedInUser().getUserId());
+            return "redirect:/";
+        } catch (SQLException error) {
+            System.out.println(error.getMessage());
+            return "redirect:/?error=" + error.getMessage();
+        }
+
+        // // Redirect the user with an error message if there was an error.
+        // String message = URLEncoder.encode("Failed to create the post. Please try again.",
+        //         StandardCharsets.UTF_8);
+        // return "redirect:/?error=" + message;
     }
 
 }

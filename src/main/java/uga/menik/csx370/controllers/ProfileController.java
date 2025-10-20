@@ -5,6 +5,7 @@ This is a project developed by Dr. Menik to give the students an opportunity to 
 */
 package uga.menik.csx370.controllers;
 
+import java.sql.SQLException;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,8 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.ModelAndView;
 
 import uga.menik.csx370.models.Post;
+import uga.menik.csx370.services.PostService;
 import uga.menik.csx370.services.UserService;
-import uga.menik.csx370.utility.Utility;
 
 /**
  * Handles /profile URL and its sub URLs.
@@ -27,14 +28,16 @@ public class ProfileController {
 
     // UserService has user login and registration related functions.
     private final UserService userService;
+    private final PostService postService;
 
     /**
      * See notes in AuthInterceptor.java regarding how this works 
      * through dependency injection and inversion of control.
      */
     @Autowired
-    public ProfileController(UserService userService) {
+    public ProfileController(UserService userService, PostService postService) {
         this.userService = userService;
+        this.postService = postService;
     }
 
     /**
@@ -62,7 +65,12 @@ public class ProfileController {
 
         // Following line populates sample data.
         // You should replace it with actual data from the database.
-        List<Post> posts = Utility.createSamplePostsListWithoutComments();
+        List<Post> posts = null;
+        try {
+            posts = postService.getAllPostsWithoutComments(userId);
+        } catch (SQLException error) {
+            System.out.println(error.getMessage());
+        }
         mv.addObject("posts", posts);
 
         // If an error occured, you can set the following property with the

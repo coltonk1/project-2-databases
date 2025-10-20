@@ -40,7 +40,21 @@ public class PeopleService {
         // The output list of people.
         List<FollowableUser> output = new ArrayList<>();
         // Note the ? placeholder, filled in later, used to avoid problems such as SQL injection.
-        final String sql = "select * from user where userId != ?";
+        final String sql = """
+            SELECT u.userId, u.firstName, u.lastName, 
+                MAX(p.createdAt) AS lastPostDate,
+                EXISTS (
+                    SELECT 1
+                    FROM follows f
+                    WHERE f.userId = ?
+                    AND f.useridFollowed = u.userId
+                ) as isFollowed
+            FROM user u
+            LEFT JOIN posts p ON p.authorId = u.userId
+            WHERE u.userId != ?
+            GROUP BY u.userId, u.firstName, u.lastName
+            ORDER BY lastPostDate DESC
+        """;
         
         try (
             // Connect to database
@@ -48,23 +62,72 @@ public class PeopleService {
             // Prepare statement
             PreparedStatement pstmt = conn.prepareStatement(sql)
         ) {
-            // Replace the ? placeholder with the user id to not list.
             pstmt.setString(1, userIdToExclude);
+            pstmt.setString(2, userIdToExclude);
             // The results of the query
             try (ResultSet rs = pstmt.executeQuery()) {
-                // Iterate through each row, getting their info from user table, 
-                // and putting placeholders for isFollowed and lastActiveDate, 
-                // adding each user to output list
                 while (rs.next()) {
                     String userId = rs.getString("userId");
                     String firstName = rs.getString("firstName");
                     String lastName = rs.getString("lastName");
+                    String lastPostDate = rs.getString("lastPostDate");
+                    Boolean isFollowed = rs.getBoolean("isFollowed");
 
-                    FollowableUser user = new FollowableUser(userId, firstName, lastName, false, "10/09/2025");
+                    if (lastPostDate == null) {
+                        lastPostDate = ": Never";
+                    }
+
+                    FollowableUser user = new FollowableUser(userId, firstName, lastName, isFollowed, lastPostDate);
                     output.add(user);
                 }
             }
         }
         return output;
     }
+
+    public boolean toggleFollow(String currentUserId, String targetUserId) throws SQLException {
+        final String checkSql = """
+            SELECT 1 FROM follows
+            WHERE userId = ? AND userIdFollowed = ?
+        """;
+
+        final String insertSql = """
+            INSERT INTO follows (userId, userIdFollowed)
+            VALUES (?, ?)
+        """;
+
+        final String deleteSql = """
+            DELETE FROM follows
+            WHERE userId = ? AND userIdFollowed = ?
+        """;
+
+        try (Connection conn = dataSource.getConnection()) {
+            // Check if user is already followed
+            boolean isFollowed = false;
+            try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
+                checkStmt.setString(1, currentUserId);
+                checkStmt.setString(2, targetUserId);
+                try (ResultSet rs = checkStmt.executeQuery()) {
+                    isFollowed = rs.next();
+                }
+            }
+
+            if (isFollowed) {
+                try (PreparedStatement deleteStmt = conn.prepareStatement(deleteSql)) {
+                    deleteStmt.setString(1, currentUserId);
+                    deleteStmt.setString(2, targetUserId);
+                    deleteStmt.executeUpdate();
+                }
+                return false; // now unfollowed
+            } else {
+                try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
+                    insertStmt.setString(1, currentUserId);
+                    insertStmt.setString(2, targetUserId);
+                    insertStmt.executeUpdate();
+                }
+                return true; // now followed
+            }
+        }
+    }
+
 }
