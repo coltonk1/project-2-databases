@@ -5,6 +5,8 @@ This is a project developed by Dr. Menik to give the students an opportunity to 
 */
 package uga.menik.csx370.controllers;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -83,13 +85,18 @@ public class HomeController {
 
         // Redirect the user if the post creation is a success.
         // return "redirect:/";
-
-        try {
-            postService.createPost(postText, userService.getLoggedInUser().getUserId());
-            return "redirect:/";
-        } catch (SQLException error) {
-            System.out.println(error.getMessage());
-            return "redirect:/?error=" + error.getMessage();
+        // otherwise redirect the user with an error message.
+        if (postText == null || postText.trim().isEmpty()) {
+            String message = URLEncoder.encode("Content cannot be empty.", StandardCharsets.UTF_8);
+            return "redirect:/?error=" + message;
+        } else {
+            try {
+                postService.createPost(postText, userService.getLoggedInUser().getUserId());
+                return "redirect:/";
+            } catch (SQLException error) {
+                System.out.println(error.getMessage());
+                return "redirect:/?error=" + error.getMessage();
+            }
         }
 
         // // Redirect the user with an error message if there was an error.

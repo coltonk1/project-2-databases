@@ -8,6 +8,7 @@ package uga.menik.csx370.controllers;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,10 +31,12 @@ import uga.menik.csx370.services.UserService;
 @RequestMapping("/post")
 public class PostController {
     private final PostService postService;
+    private final UserService userService;
 
     @Autowired
     public PostController(UserService userService, PostService postService) {
         this.postService = postService;
+        this.userService = userService;
     }
     /**
      * This function handles the /post/{postId} URL.
@@ -54,13 +57,14 @@ public class PostController {
 
         // Following line populates sample data.
         // You should replace it with actual data from the database.
-        List<ExpandedPost> posts = null;
+        List<ExpandedPost> posts = new ArrayList<>();
         try {
             posts = postService.getExpandedPostsById(postId);
         } catch (SQLException error2) {
-            System.out.println(error2.getMessage());
+            mv.addObject("errorMessage", "Failed to load the requested post: " + error2.getMessage());
         }
         mv.addObject("posts", posts);
+        mv.addObject("isNoContent", posts == null || posts.isEmpty());
 
         // If an error occured, you can set the following property with the
         // error message to show the error message to the user.
@@ -88,13 +92,22 @@ public class PostController {
         System.out.println("\tpostId: " + postId);
         System.out.println("\tcomment: " + comment);
 
-        // Redirect the user if the comment adding is a success.
-        // return "redirect:/post/" + postId;
-
-        // Redirect the user with an error message if there was an error.
-        String message = URLEncoder.encode("Failed to post the comment. Please try again.",
-                StandardCharsets.UTF_8);
-        return "redirect:/post/" + postId + "?error=" + message;
+        // ensure comment is not empty
+        if (comment == null || comment.trim().isEmpty()) {
+            String message = URLEncoder.encode("Comment cannot be empty.", StandardCharsets.UTF_8);
+            return "redirect:/post/" + postId + "?error=" + message;
+        } else {
+            try {
+                String authorId = userService.getLoggedInUser().getUserId();
+                postService.addComment(postId, comment, authorId);
+                return "redirect:/post/" + postId;
+            } catch (Exception e) {
+                // Redirect the user with an error message if there was an error.
+                String message = URLEncoder.encode("Failed to post the comment. Please try again." + e.getMessage(),
+                        StandardCharsets.UTF_8);
+                return "redirect:/post/" + postId + "?error=" + message;
+            }
+        }
     }
 
     /**
@@ -112,11 +125,19 @@ public class PostController {
 
         // Redirect the user if the comment adding is a success.
         // return "redirect:/post/" + postId;
-
-        // Redirect the user with an error message if there was an error.
-        String message = URLEncoder.encode("Failed to (un)like the post. Please try again.",
-                StandardCharsets.UTF_8);
-        return "redirect:/post/" + postId + "?error=" + message;
+        try {
+            String userId = userService.getLoggedInUser().getUserId();
+            if (isAdd) {
+                postService.addLike(userId, postId);
+            } else {
+                postService.removeLike(userId, postId);
+            }
+            return "redirect:/post/" + postId;
+        } catch (Exception e) {
+            e.printStackTrace();
+            String message = URLEncoder.encode("Failed to (un)like the post. Please try again."  + e.getMessage(), StandardCharsets.UTF_8);
+            return "redirect:/post/" + postId + "?error=" + message;
+        }
     }
 
     /**
@@ -134,11 +155,19 @@ public class PostController {
 
         // Redirect the user if the comment adding is a success.
         // return "redirect:/post/" + postId;
-
-        // Redirect the user with an error message if there was an error.
-        String message = URLEncoder.encode("Failed to (un)bookmark the post. Please try again.",
-                StandardCharsets.UTF_8);
-        return "redirect:/post/" + postId + "?error=" + message;
+        try {
+            String userId = userService.getLoggedInUser().getUserId();
+            if (isAdd) {
+                postService.addBookmark(userId, postId);
+            } else {
+                postService.removeBookmark(userId, postId);
+            }
+            return "redirect:/post/" + postId;
+        } catch (Exception e) {
+            e.printStackTrace();
+            String message = URLEncoder.encode("Failed to (un)bookmark the post. Please try again."  + e.getMessage(), StandardCharsets.UTF_8);
+            return "redirect:/post/" + postId + "?error=" + message;
+        }
     }
 
 }

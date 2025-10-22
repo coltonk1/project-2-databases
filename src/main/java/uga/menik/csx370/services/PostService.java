@@ -1,5 +1,7 @@
 package uga.menik.csx370.services;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -117,10 +119,10 @@ public class PostService {
                 }
             }
 
-            String[] all_words = content.split(" ");
+            String[] all_words = content.split("\\s+");
             Set<String> all_tags = new HashSet<>();
             final String tagSql = """
-                    INSERT INTO hashtags (postId, tag)
+                    INSERT INTO hashtags (postId, tag) 
                     VALUES (?, ?)
                     """;
 
@@ -212,6 +214,102 @@ public class PostService {
         }
 
         return expandedPosts;
+    }
+
+    /**
+     * Adds a comment to a post.
+     */
+    public void addComment(String postId, String authorId, String body) throws SQLException {
+        final String sql = """
+            INSERT INTO comments (postId, authorId, body, createdAt)
+            VALUES (?, ?, ?, NOW())
+        """;
+
+        try (
+            Connection conn = dataSource.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+        ) {
+            pstmt.setString(1, postId);
+            pstmt.setString(2, authorId);
+            pstmt.setString(3, body);
+            pstmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Adds a like (heart) for a post by a user. Returns true if inserted, false if it already existed.
+     */
+    public void addLike(String userId, String postId) throws SQLException {
+        final String sql = """
+            INSERT INTO likes (userId, postId, createdAt)
+            VALUES (?, ?, NOW())
+        """;
+
+        try (
+            Connection conn = dataSource.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+        ) {
+            pstmt.setString(1, userId);
+            pstmt.setString(2, postId);
+            pstmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Removes a like (heart) for a post by a user. Returns true if a row was deleted.
+     */
+    public void removeLike(String userId, String postId) throws SQLException {
+        final String sql = """
+            DELETE FROM likes
+            WHERE userId = ? AND postId = ?
+        """;
+
+        try (
+            Connection conn = dataSource.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+        ) {
+            pstmt.setString(1, userId);
+            pstmt.setString(2, postId);
+            pstmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Adds a bookmark for a post by a user.
+     */
+    public void addBookmark(String userId, String postId) throws SQLException {
+        final String sql = """
+            INSERT INTO bookmarks (userId, postId, createdAt)
+            VALUES (?, ?, NOW())
+        """;
+
+        try (
+            Connection conn = dataSource.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+        ) {
+            pstmt.setString(1, userId);
+            pstmt.setString(2, postId);
+            pstmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Removes a bookmark for a post by a user.
+     */
+    public void removeBookmark(String userId, String postId) throws SQLException {
+        final String sql = """
+            DELETE FROM bookmarks
+            WHERE userId = ? AND postId = ?
+        """;
+
+        try (
+            Connection conn = dataSource.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+        ) {
+            pstmt.setString(1, userId);
+            pstmt.setString(2, postId);
+            pstmt.executeUpdate();
+        }
     }
 
 }
