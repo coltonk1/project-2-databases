@@ -1,7 +1,5 @@
 package uga.menik.csx370.services;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -29,17 +27,24 @@ public class PostService {
     public PostService(DataSource dataSource) {
         this.dataSource = dataSource;
     }
-
+    /*
+     *  Builds the feed for a logged‑in user 
+     *  Shows posts that the given user follows on the homepage.
+     */
     public List<Post> getPostsWithoutComments(String userId) throws SQLException {
         List<Post> output = new ArrayList<>();
 
         final String sql = """
-            SELECT p.postId, p.body AS content, p.createdAt AS postDate, u.userId, u.firstName, u.lastName 
-            FROM posts p, user u, follows f 
-            WHERE f.userId = ? 
-            AND f.userIdFollowed = p.authorId 
-            AND u.userId = p.authorId
-            ORDER BY createdAt DESC
+            SELECT p.postId, p.body AS content,
+                DATE_FORMAT(p.createdAt, '%b %d, %Y, %l:%i %p') AS postDate,
+                u.userId, u.firstName, u.lastName,
+                (SELECT COUNT(*) FROM likes l WHERE l.postId = p.postId) AS heartsCount,
+                (SELECT COUNT(*) FROM comments c WHERE c.postId = p.postId) AS commentsCount
+            FROM posts p
+            JOIN user u ON u.userId = p.authorId
+            JOIN follows f ON f.userIdFollowed = p.authorId
+            WHERE f.userId = ?
+            ORDER BY p.createdAt DESC
         """;
         
         try (
@@ -55,9 +60,13 @@ public class PostService {
                     String postDate = rs.getString("postDate");
                     String postId = rs.getString("postId");
                     String content = rs.getString("content");
+                    int heartsCount = rs.getInt("heartsCount");
+                    int commentsCount = rs.getInt("commentsCount");
 
                     User author = new User(authorId, firstName, lastName);
-                    Post post = new Post(postId, content, postDate, author, 0, 0, false, false);
+                    boolean isHearted = isPostLikedByUser(userId, postId);
+                    boolean isBookmarked = isPostBookmarkedByUser(userId, postId);
+                    Post post = new Post(postId, content, postDate, author, heartsCount, commentsCount, isHearted, isBookmarked);
                     output.add(post);
                 }
             }
@@ -65,15 +74,22 @@ public class PostService {
         return output;
     }
 
+    /*
+     *  Shows all posts for a specific user (profile page).
+     */
     public List<Post> getAllPostsWithoutComments(String userId) throws SQLException {
         List<Post> output = new ArrayList<>();
 
         final String sql = """
-            SELECT p.postId, p.body AS content, p.createdAt AS postDate, u.userId, u.firstName, u.lastName 
-            FROM posts p, user u
+            SELECT p.postId, p.body AS content,
+                DATE_FORMAT(p.createdAt, '%b %d, %Y, %l:%i %p') AS postDate,
+                u.userId, u.firstName, u.lastName,
+                (SELECT COUNT(*) FROM likes l WHERE l.postId = p.postId) AS heartsCount,
+                (SELECT COUNT(*) FROM comments c WHERE c.postId = p.postId) AS commentsCount
+            FROM posts p
+            JOIN user u ON u.userId = p.authorId
             WHERE u.userId = ?
-            AND u.userId = p.authorId
-            ORDER BY createdAt DESC
+            ORDER BY p.createdAt DESC
         """;
         
         try (
@@ -89,9 +105,13 @@ public class PostService {
                     String postDate = rs.getString("postDate");
                     String postId = rs.getString("postId");
                     String content = rs.getString("content");
+                    int heartsCount = rs.getInt("heartsCount");
+                    int commentsCount = rs.getInt("commentsCount");
 
                     User author = new User(authorId, firstName, lastName);
-                    Post post = new Post(postId, content, postDate, author, 0, 0, false, false);
+                    boolean isHearted = isPostLikedByUser(userId, postId);
+                    boolean isBookmarked = isPostBookmarkedByUser(userId, postId);
+                    Post post = new Post(postId, content, postDate, author, heartsCount, commentsCount, isHearted, isBookmarked);
                     output.add(post);
                 }
             }
@@ -128,7 +148,7 @@ public class PostService {
 
             PreparedStatement tagStmt = conn.prepareStatement(tagSql);
             for (String word : all_words) {
-                if (word.startsWith("#") && word.length() > 1) {
+                if (word.startsWith("#") && word.length() >= 1) {
                     String tag = word.substring(1).toLowerCase();
                     if (!all_tags.contains(tag)) {
                         all_tags.add(tag);
@@ -141,12 +161,17 @@ public class PostService {
         }
     }
 
-    public List<ExpandedPost> getExpandedPostsById(String postId) throws SQLException {
+    /*
+     *  Shows a single post with all its comments.
+     */
+    public List<ExpandedPost> getExpandedPostsById(String postId, String userId) throws SQLException {
         List<ExpandedPost> expandedPosts = new ArrayList<>();
 
         final String postSql = """
-            SELECT p.postId, p.body AS content, p.createdAt AS postDate,
-                u.userId, u.firstName, u.lastName
+            SELECT p.postId, p.body AS content,
+                DATE_FORMAT(p.createdAt, '%b %d, %Y, %l:%i %p') AS postDate,
+                u.userId, u.firstName, u.lastName,
+                (SELECT COUNT(*) FROM likes l WHERE l.postId = p.postId) AS heartsCount
             FROM posts p
             JOIN user u ON p.authorId = u.userId
             WHERE p.postId = ?
@@ -164,6 +189,7 @@ public class PostService {
                     String authorId = rs.getString("userId");
                     String firstName = rs.getString("firstName");
                     String lastName = rs.getString("lastName");
+                    int heartsCount = rs.getInt("heartsCount");
 
                     User author = new User(authorId, firstName, lastName);
 
@@ -195,16 +221,17 @@ public class PostService {
                             }
                         }
                     }
-
+                    boolean isHearted = isPostLikedByUser(userId, postId);
+                    boolean isBookmarked = isPostBookmarkedByUser(userId, postId);
                     ExpandedPost expandedPost = new ExpandedPost(
                         postId,
                         content,
                         postDate,
                         author,
-                        0,
+                        heartsCount,
                         comments.size(),
-                        false,
-                        false,
+                        isHearted,
+                        isBookmarked,
                         comments
                     );
 
@@ -236,6 +263,7 @@ public class PostService {
         }
     }
 
+    
     /**
      * Adds a like (heart) for a post by a user. Returns true if inserted, false if it already existed.
      */
@@ -309,6 +337,30 @@ public class PostService {
             pstmt.setString(1, userId);
             pstmt.setString(2, postId);
             pstmt.executeUpdate();
+        }
+    }
+
+    public boolean isPostLikedByUser(String userId, String postId) throws SQLException {
+        final String sql = "SELECT 1 FROM likes WHERE userId = ? AND postId = ? LIMIT 1";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            pstmt.setString(2, postId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    public boolean isPostBookmarkedByUser(String userId, String postId) throws SQLException {
+        final String sql = "SELECT 1 FROM bookmarks WHERE userId = ? AND postId = ? LIMIT 1";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            pstmt.setString(2, postId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
+            }
         }
     }
 

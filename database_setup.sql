@@ -25,7 +25,8 @@ create table if not exists posts (
     body text not null,
     createdAt datetime default current_timestamp,
     primary key (postId),
-    foreign key (authorId) REFERENCES user(userId)
+    foreign key (authorId) REFERENCES user(userId),
+    constraint body_min_length check (char_length(trim(body)) >= 1)
 );
 
 -- Create hashtags table.
@@ -45,7 +46,8 @@ create table if not exists comments (
     createdAt datetime default current_timestamp,
     primary key (commentId),
     foreign key (postId) references posts(postId),
-    foreign key (authorId) references user(userId)
+    foreign key (authorId) references user(userId),
+    constraint body_min_length check (char_length(trim(body)) >= 1)
 );
 
 -- Create likes table.

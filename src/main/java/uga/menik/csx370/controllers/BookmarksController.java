@@ -5,6 +5,7 @@ This is a project developed by Dr. Menik to give the students an opportunity to 
 */
 package uga.menik.csx370.controllers;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Controller;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.ModelAndView;
 
+import uga.menik.csx370.models.ExpandedPost;
 import uga.menik.csx370.models.Post;
 import uga.menik.csx370.utility.Utility;
 
@@ -38,7 +40,7 @@ public class BookmarksController {
 
         // Following line populates sample data.
         // You should replace it with actual data from the database.
-        List<Post> posts = Utility.createSamplePostsListWithoutComments();
+        List<ExpandedPost> posts = new ArrayList<>();
         mv.addObject("posts", posts);
 
         // If an error occured, you can set the following property with the

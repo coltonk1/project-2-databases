@@ -42,7 +42,7 @@ public class PeopleService {
         // Note the ? placeholder, filled in later, used to avoid problems such as SQL injection.
         final String sql = """
             SELECT u.userId, u.firstName, u.lastName, 
-                MAX(p.createdAt) AS lastPostDate,
+                DATE_FORMAT(MAX(p.createdAt), '%b %d, %Y, %l:%i %p') AS lastPostDate,
                 EXISTS (
                     SELECT 1
                     FROM follows f

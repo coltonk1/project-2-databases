@@ -59,7 +59,7 @@ public class PostController {
         // You should replace it with actual data from the database.
         List<ExpandedPost> posts = new ArrayList<>();
         try {
-            posts = postService.getExpandedPostsById(postId);
+            posts = postService.getExpandedPostsById(postId, userService.getLoggedInUser().getUserId());
         } catch (SQLException error2) {
             mv.addObject("errorMessage", "Failed to load the requested post: " + error2.getMessage());
         }
@@ -92,12 +92,7 @@ public class PostController {
         System.out.println("\tpostId: " + postId);
         System.out.println("\tcomment: " + comment);
 
-        // ensure comment is not empty
-        if (comment == null || comment.trim().isEmpty()) {
-            String message = URLEncoder.encode("Comment cannot be empty.", StandardCharsets.UTF_8);
-            return "redirect:/post/" + postId + "?error=" + message;
-        } else {
-            try {
+        try {
                 String authorId = userService.getLoggedInUser().getUserId();
                 postService.addComment(postId, comment, authorId);
                 return "redirect:/post/" + postId;
@@ -108,7 +103,7 @@ public class PostController {
                 return "redirect:/post/" + postId + "?error=" + message;
             }
         }
-    }
+    
 
     /**
      * Handles likes added on posts.
