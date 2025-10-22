@@ -248,10 +248,10 @@ public class PostService {
      */
     public void addComment(String postId, String authorId, String body) throws SQLException {
         final String sql = """
-            INSERT INTO comments (postId, authorId, body, createdAt)
-            VALUES (?, ?, ?, NOW())
+            INSERT INTO comments (postId, authorId, body)
+            VALUES (?, ?, ?)
         """;
-
+        System.out.println("Adding comment to postId: " + postId + " by authorId: " + authorId);
         try (
             Connection conn = dataSource.getConnection();
             PreparedStatement pstmt = conn.prepareStatement(sql);

@@ -94,9 +94,9 @@ public class PostController {
 
         try {
                 String authorId = userService.getLoggedInUser().getUserId();
-                postService.addComment(postId, comment, authorId);
+                postService.addComment(postId, authorId, comment);
                 return "redirect:/post/" + postId;
-            } catch (Exception e) {
+            } catch (SQLException e) {
                 // Redirect the user with an error message if there was an error.
                 String message = URLEncoder.encode("Failed to post the comment. Please try again." + e.getMessage(),
                         StandardCharsets.UTF_8);

@@ -47,7 +47,7 @@ create table if not exists comments (
     primary key (commentId),
     foreign key (postId) references posts(postId),
     foreign key (authorId) references user(userId),
-    constraint body_min_length check (char_length(trim(body)) >= 1)
+    constraint body_min_length2 check (char_length(trim(body)) >= 1)
 );
 
 -- Create likes table.
