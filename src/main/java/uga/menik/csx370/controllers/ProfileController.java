@@ -68,7 +68,7 @@ public class ProfileController {
         List<Post> posts = null;
         String errorMessage = null;
         try {
-            posts = postService.getAllPostsWithoutComments(userId);
+            posts = postService.getAllPostsWithoutComments(userId, userService.getLoggedInUser().getUserId());
         } catch (SQLException error) {
             errorMessage = error.getMessage();
             System.out.println(errorMessage);

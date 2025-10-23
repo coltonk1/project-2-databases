@@ -77,7 +77,7 @@ public class PostService {
     /*
      *  Shows all posts for a specific user (profile page).
      */
-    public List<Post> getAllPostsWithoutComments(String userId) throws SQLException {
+    public List<Post> getAllPostsWithoutComments(String userId, String userIdOfLoggedIn) throws SQLException {
         List<Post> output = new ArrayList<>();
 
         final String sql = """
@@ -109,8 +109,8 @@ public class PostService {
                     int commentsCount = rs.getInt("commentsCount");
 
                     User author = new User(authorId, firstName, lastName);
-                    boolean isHearted = isPostLikedByUser(userId, postId);
-                    boolean isBookmarked = isPostBookmarkedByUser(userId, postId);
+                    boolean isHearted = isPostLikedByUser(userIdOfLoggedIn, postId);
+                    boolean isBookmarked = isPostBookmarkedByUser(userIdOfLoggedIn, postId);
                     Post post = new Post(postId, content, postDate, author, heartsCount, commentsCount, isHearted, isBookmarked);
                     output.add(post);
                 }
