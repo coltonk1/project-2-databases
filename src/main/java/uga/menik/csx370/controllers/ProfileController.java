@@ -6,6 +6,7 @@ This is a project developed by Dr. Menik to give the students an opportunity to 
 package uga.menik.csx370.controllers;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,7 +48,8 @@ public class ProfileController {
     @GetMapping
     public ModelAndView profileOfLoggedInUser() {
         System.out.println("User is attempting to view profile of the logged in user.");
-        return profileOfSpecificUser(userService.getLoggedInUser().getUserId());
+        final String loggedInUserId = userService.getLoggedInUser().getUserId();
+        return profileOfSpecificUser(loggedInUserId);
     }
 
     /**
@@ -60,32 +62,24 @@ public class ProfileController {
     public ModelAndView profileOfSpecificUser(@PathVariable("userId") String userId) {
         System.out.println("User is attempting to view profile: " + userId);
         
-        // See notes on ModelAndView in BookmarksController.java.
         ModelAndView mv = new ModelAndView("posts_page");
 
-        // Following line populates sample data.
-        // You should replace it with actual data from the database.
-        List<Post> posts = null;
-        String errorMessage = null;
-        try {
-            posts = postService.getAllPostsWithoutComments(userId, userService.getLoggedInUser().getUserId());
-        } catch (SQLException error) {
-            errorMessage = error.getMessage();
-            System.out.println(errorMessage);
-        }
-        mv.addObject("posts", posts);
+        // The list of posts to show on the profile page.
+        List<Post> posts = new ArrayList<>();
 
-        // If an error occured, you can set the following property with the
-        // error message to show the error message to the user.
-        // String errorMessage = "Some error occured!";
-        if (errorMessage != null) {
-            mv.addObject("errorMessage", errorMessage);
+        try {
+            // Get posts by the given user.
+            var loggedInUserId = userService.getLoggedInUser().getUserId();
+            posts = postService.getPostsByUserId(userId, loggedInUserId);
+            mv.addObject("posts", posts);
+        } catch (SQLException e) {
+            // Display error on page if there was an issue.
+            mv.addObject("errorMessage", "There was an error loading profile posts! Please try again.");
+            System.out.println("Error loading profile posts: " + e.getMessage());
         }
-        // Enable the following line if you want to show no content message.
-        // Do that if your content list is empty.
-        if (posts == null) {
-            mv.addObject("isNoContent", true);
-        }
+
+        // If no posts, show no content message.
+        mv.addObject("isNoContent", posts.isEmpty());
         
         return mv;
     }

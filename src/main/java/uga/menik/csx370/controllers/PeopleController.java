@@ -8,6 +8,7 @@ package uga.menik.csx370.controllers;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,20 +53,22 @@ public class PeopleController {
         ModelAndView mv = new ModelAndView("people_page");
         
         // The list of followable users
-        List<FollowableUser> followableUsers = null;
-        try {
-            // Getting logged in users id, then calling service to get list of users.
-            String currentUserId = userService.getLoggedInUser().getUserId();
-            followableUsers = peopleService.getFollowableUsers(currentUserId);
-        } catch (Exception e) {
-            System.out.println(e);
-        }
-
-        // Add object to template
-        mv.addObject("users", followableUsers);
+        List<FollowableUser> followableUsers = new ArrayList<>();
 
         String errorMessage = error;
+
+        try {
+            // Getting logged in users id, then calling service to get list of users.
+            String loggedInUserId = userService.getLoggedInUser().getUserId();
+            followableUsers = peopleService.getFollowableUsers(loggedInUserId);
+        } catch (SQLException e) {
+            System.out.println("Failed to load users: " + e.getMessage());
+            errorMessage = "Failed to load users. Please try again.";
+        }
+
+        mv.addObject("users", followableUsers);
         mv.addObject("errorMessage", errorMessage);
+        mv.addObject("isNoContent", followableUsers.isEmpty());
         
         return mv;
     }
@@ -88,25 +91,23 @@ public class PeopleController {
         System.out.println("\tisFollow: " + isFollow);
 
         try {
-            boolean nowFollowed;
-            // I didnt realize isFollow was a thing so the toggleFollow could be split into 2 functions to be optimized.
-            if (isFollow) {
-                nowFollowed = true;
-                peopleService.toggleFollow(userService.getLoggedInUser().getUserId(), userId); // follow
-            } else {
-                nowFollowed = false;
-                peopleService.toggleFollow(userService.getLoggedInUser().getUserId(), userId); // unfollow
-            }
+            // Get logged in user's id.
+            final String loggedInUserId = userService.getLoggedInUser().getUserId();
 
+            // Call the appropriate service function.
+            if (isFollow) peopleService.followUser(loggedInUserId, userId);
+            else peopleService.unfollowUser(loggedInUserId, userId);
+
+            // Redirect the user if follow/unfollow is a success.
             String message = URLEncoder.encode(
-                nowFollowed ? "User followed" : "User unfollowed",
+                isFollow ? "User followed" : "User unfollowed",
                 StandardCharsets.UTF_8
             );
             return "redirect:/people?success=" + message;
-
         } catch (SQLException e) {
-            e.printStackTrace();
+            // Redirect the user with an error message if there was an issue.
             String message = URLEncoder.encode("Failed to (un)follow the user. Please try again.", StandardCharsets.UTF_8);
+            System.out.println("Error (un)following user: " + e.getMessage());
             return "redirect:/people?error=" + message;
         }
     }

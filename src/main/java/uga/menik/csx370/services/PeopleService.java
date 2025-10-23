@@ -67,67 +67,59 @@ public class PeopleService {
             // The results of the query
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
+                    // Extracting data from the result set.
                     String userId = rs.getString("userId");
                     String firstName = rs.getString("firstName");
                     String lastName = rs.getString("lastName");
                     String lastPostDate = rs.getString("lastPostDate");
                     Boolean isFollowed = rs.getBoolean("isFollowed");
 
-                    if (lastPostDate == null) {
-                        lastPostDate = ": Never";
-                    }
+                    // If the user has never posted, lastPostDate will be null.
+                    if (lastPostDate == null) lastPostDate = ": Never";
 
+                    // Create FollowableUser object and add to output list.
                     FollowableUser user = new FollowableUser(userId, firstName, lastName, isFollowed, lastPostDate);
                     output.add(user);
                 }
             }
+
+            return output;
         }
-        return output;
     }
 
-    public boolean toggleFollow(String currentUserId, String targetUserId) throws SQLException {
-        final String checkSql = """
-            SELECT 1 FROM follows
-            WHERE userId = ? AND userIdFollowed = ?
-        """;
-
-        final String insertSql = """
+    /**
+     * Make loggedInUserId follow targetUserId.
+     */
+    public void followUser(String loggedInUserId, String targetUserId) throws SQLException {
+        final String sql = """
             INSERT INTO follows (userId, userIdFollowed)
             VALUES (?, ?)
         """;
 
-        final String deleteSql = """
+        try (Connection conn = dataSource.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, loggedInUserId);
+            pstmt.setString(2, targetUserId);
+            pstmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Make loggedInUserId unfollow targetUserId.
+     */
+    public void unfollowUser(String loggedInUserId, String targetUserId) throws SQLException {
+        final String sql = """
             DELETE FROM follows
             WHERE userId = ? AND userIdFollowed = ?
         """;
 
-        try (Connection conn = dataSource.getConnection()) {
-            // Check if user is already followed
-            boolean isFollowed = false;
-            try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
-                checkStmt.setString(1, currentUserId);
-                checkStmt.setString(2, targetUserId);
-                try (ResultSet rs = checkStmt.executeQuery()) {
-                    isFollowed = rs.next();
-                }
-            }
-
-            if (isFollowed) {
-                try (PreparedStatement deleteStmt = conn.prepareStatement(deleteSql)) {
-                    deleteStmt.setString(1, currentUserId);
-                    deleteStmt.setString(2, targetUserId);
-                    deleteStmt.executeUpdate();
-                }
-                return false; // now unfollowed
-            } else {
-                try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
-                    insertStmt.setString(1, currentUserId);
-                    insertStmt.setString(2, targetUserId);
-                    insertStmt.executeUpdate();
-                }
-                return true; // now followed
-            }
+        try (Connection conn = dataSource.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, loggedInUserId);
+            pstmt.setString(2, targetUserId);
+            pstmt.executeUpdate();
         }
     }
+
 
 }

@@ -50,28 +50,27 @@ public class BookmarksController {
         // in the template using Java objects assigned to named properties.
         ModelAndView mv = new ModelAndView("posts_page");
         
-        // Following line populates sample data.
-        // You should replace it with actual data from the database.
+        // The list of posts to show on the page.
         List<Post> posts = new ArrayList<>();
+        // Error message to show to the user if any.
+        String errorMessage = null;
+
         try {
-            User user = userService.getLoggedInUser();
-            posts = postService.getBookmarkedPosts(user.getUserId());
+            // Get bookmarked posts for the logged in user.
+            String loggedInUserId = userService.getLoggedInUser().getUserId();
+            posts = postService.getBookmarkedPosts(loggedInUserId);
+            // Set posts property to the list of posts.
+            mv.addObject("posts", posts);
         } catch (Exception e) {
-            e.printStackTrace();
-            mv.addObject("errorMessage", "Failed to load bookmarked posts: " + e.getMessage());
+            // Set error message if there was an issue.
+            errorMessage = "Failed to load bookmarked posts. Please try again.";
+            System.out.println("Failed to load bookmarked posts: " + e.getMessage());
         }
-        mv.addObject("posts", posts);
-        mv.addObject("isNoContent", posts == null || posts.isEmpty());    
-        
 
-        // If an error occured, you can set the following property with the
-        // error message to show the error message to the user.
-        // String errorMessage = "Some error occured!";
-        // mv.addObject("errorMessage", errorMessage);
-
-        // Enable the following line if you want to show no content message.
-        // Do that if your content list is empty.
-        // mv.addObject("isNoContent", true);
+        // If no posts, show no content message.
+        mv.addObject("isNoContent", posts.isEmpty());
+        // If error, show error message.    
+        mv.addObject("errorMessage", errorMessage);
 
         return mv;
     }

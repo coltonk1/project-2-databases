@@ -8,6 +8,7 @@ package uga.menik.csx370.controllers;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,25 +49,25 @@ public class HomeController {
         // See notes on ModelAndView in BookmarksController.java.
         ModelAndView mv = new ModelAndView("home_page");
 
-        // Following line populates sample data.
-        // You should replace it with actual data from the database.
-        List<Post> posts = null;
-        try {
-            posts = postService.getPostsWithoutComments(userService.getLoggedInUser().getUserId());
-        } catch (SQLException error2) {
-            System.out.println(error2.getMessage());
-        }
-        mv.addObject("posts", posts);
-
-        // If an error occured, you can set the following property with the
-        // error message to show the error message to the user.
-        // An error message can be optionally specified with a url query parameter too.
+        // The list of posts to show on the page.
+        List<Post> posts = new ArrayList<>();
+        // Error message to show to the user if any.
         String errorMessage = error;
-        mv.addObject("errorMessage", errorMessage);
+        
+        try {
+            // Get posts from followed users.
+            posts = postService.getPostsFromFollowedUsers(userService.getLoggedInUser().getUserId());
+            mv.addObject("posts", posts);
+        } catch (SQLException e) {
+            // Set error message if there was an issue.
+            errorMessage = "Failed to load posts. Please try again.";
+            System.out.println("Failed to load posts: " + e.getMessage());
+        }
 
-        // Enable the following line if you want to show no content message.
-        // Do that if your content list is empty.
-        // mv.addObject("isNoContent", true);
+        // If error, set the error message property.
+        mv.addObject("errorMessage", errorMessage);
+        // If no posts, show no content message.
+        mv.addObject("isNoContent", posts.isEmpty());
 
         return mv;
     }
@@ -83,26 +84,17 @@ public class HomeController {
     public String createPost(@RequestParam(name = "posttext") String postText) {
         System.out.println("User is creating post: " + postText);
 
-        // Redirect the user if the post creation is a success.
-        // return "redirect:/";
-        // otherwise redirect the user with an error message.
-        if (postText == null || postText.trim().isEmpty()) {
-            String message = URLEncoder.encode("Content cannot be empty.", StandardCharsets.UTF_8);
+        try {
+            postService.createPost(postText, userService.getLoggedInUser().getUserId());
+            // Redirect the user if the post creation is a success.
+            return "redirect:/";
+        } catch (SQLException error) {
+            // Redirect the user with an error message if there was an issue.
+            System.out.println("Error creating post: " + error.getMessage());
+            String message = URLEncoder.encode("Failed to create the post. Please try again.",
+                    StandardCharsets.UTF_8);
             return "redirect:/?error=" + message;
-        } else {
-            try {
-                postService.createPost(postText, userService.getLoggedInUser().getUserId());
-                return "redirect:/";
-            } catch (SQLException error) {
-                System.out.println(error.getMessage());
-                return "redirect:/?error=" + error.getMessage();
-            }
         }
-
-        // // Redirect the user with an error message if there was an error.
-        // String message = URLEncoder.encode("Failed to create the post. Please try again.",
-        //         StandardCharsets.UTF_8);
-        // return "redirect:/?error=" + message;
     }
 
 }

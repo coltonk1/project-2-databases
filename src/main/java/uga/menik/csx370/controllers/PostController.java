@@ -55,26 +55,25 @@ public class PostController {
         // See notes on ModelAndView in BookmarksController.java.
         ModelAndView mv = new ModelAndView("posts_page");
 
-        // Following line populates sample data.
-        // You should replace it with actual data from the database.
+        // The list of posts to show on the page.
         List<ExpandedPost> posts = new ArrayList<>();
-        try {
-            posts = postService.getExpandedPostsById(postId, userService.getLoggedInUser().getUserId());
-        } catch (SQLException error2) {
-            mv.addObject("errorMessage", "Failed to load the requested post: " + error2.getMessage());
-        }
-        mv.addObject("posts", posts);
-        mv.addObject("isNoContent", posts == null || posts.isEmpty());
 
-        // If an error occured, you can set the following property with the
-        // error message to show the error message to the user.
-        // An error message can be optionally specified with a url query parameter too.
         String errorMessage = error;
-        mv.addObject("errorMessage", errorMessage);
 
-        // Enable the following line if you want to show no content message.
-        // Do that if your content list is empty.
-        // mv.addObject("isNoContent", true);
+        try {
+            // Setting the posts object to the actual posts from the database.
+            posts = postService.getExpandedPostsById(postId, userService.getLoggedInUser().getUserId());
+            mv.addObject("posts", posts);
+        } catch (SQLException e) {
+            // Display error on page if there was an issue.
+            errorMessage = "Failed to load the requested post. Please try again.";
+            System.out.println("Error loading posts: " + e.getMessage());
+        }
+
+        // If no posts, show no content message.
+        mv.addObject("isNoContent", posts.isEmpty());
+        // If error, show error message.
+        mv.addObject("errorMessage", errorMessage);
 
         return mv;
     }
@@ -93,16 +92,18 @@ public class PostController {
         System.out.println("\tcomment: " + comment);
 
         try {
-                String authorId = userService.getLoggedInUser().getUserId();
-                postService.addComment(postId, authorId, comment);
-                return "redirect:/post/" + postId;
-            } catch (SQLException e) {
-                // Redirect the user with an error message if there was an error.
-                String message = URLEncoder.encode("Failed to post the comment. Please try again." + e.getMessage(),
-                        StandardCharsets.UTF_8);
-                return "redirect:/post/" + postId + "?error=" + message;
-            }
+            String loggedInUserId = userService.getLoggedInUser().getUserId();
+            postService.addComment(postId, loggedInUserId, comment);
+            // Redirect the user if the comment adding is a success.
+            return "redirect:/post/" + postId;
+        } catch (SQLException e) {
+            // Redirect the user with an error message if there was an error.
+            String message = URLEncoder.encode("Failed to post the comment. Please try again.",
+                    StandardCharsets.UTF_8);
+            System.out.println("Error loading posts: " + e.getMessage());
+            return "redirect:/post/" + postId + "?error=" + message;
         }
+    }
     
 
     /**
@@ -118,19 +119,18 @@ public class PostController {
         System.out.println("\tpostId: " + postId);
         System.out.println("\tisAdd: " + isAdd);
 
-        // Redirect the user if the comment adding is a success.
-        // return "redirect:/post/" + postId;
         try {
-            String userId = userService.getLoggedInUser().getUserId();
-            if (isAdd) {
-                postService.addLike(userId, postId);
-            } else {
-                postService.removeLike(userId, postId);
-            }
+            String loggedInUserId = userService.getLoggedInUser().getUserId();
+
+            if (isAdd) postService.addLike(loggedInUserId, postId);
+            else postService.removeLike(loggedInUserId, postId);
+
+            // Redirect the user if liking is a success.
             return "redirect:/post/" + postId;
         } catch (Exception e) {
             e.printStackTrace();
-            String message = URLEncoder.encode("Failed to (un)like the post. Please try again."  + e.getMessage(), StandardCharsets.UTF_8);
+            String message = URLEncoder.encode("Failed to (un)like the post. Please try again.", StandardCharsets.UTF_8);
+            System.out.println("Error (un)liking post: " + e.getMessage());
             return "redirect:/post/" + postId + "?error=" + message;
         }
     }
@@ -148,19 +148,17 @@ public class PostController {
         System.out.println("\tpostId: " + postId);
         System.out.println("\tisAdd: " + isAdd);
 
-        // Redirect the user if the comment adding is a success.
-        // return "redirect:/post/" + postId;
         try {
-            String userId = userService.getLoggedInUser().getUserId();
-            if (isAdd) {
-                postService.addBookmark(userId, postId);
-            } else {
-                postService.removeBookmark(userId, postId);
-            }
+            final String loggedInUserId = userService.getLoggedInUser().getUserId();
+
+            if (isAdd) postService.addBookmark(loggedInUserId, postId);
+            else postService.removeBookmark(loggedInUserId, postId);
+            
+            // Redirect the user bookmarking is a success.
             return "redirect:/post/" + postId;
-        } catch (Exception e) {
-            e.printStackTrace();
-            String message = URLEncoder.encode("Failed to (un)bookmark the post. Please try again. "  + e.getMessage(), StandardCharsets.UTF_8);
+        } catch (SQLException e) {
+            String message = URLEncoder.encode("Failed to (un)bookmark the post. Please try again. ", StandardCharsets.UTF_8);
+            System.out.println("Error (un)bookmarking post: " + e.getMessage());
             return "redirect:/post/" + postId + "?error=" + message;
         }
     }
