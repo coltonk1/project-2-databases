@@ -195,7 +195,8 @@ public class PostService {
 
                     List<Comment> comments = new ArrayList<>();
                     final String commentSql = """
-                        SELECT c.commentId, c.body AS content, c.createdAt AS commentDate,
+                        SELECT c.commentId, c.body AS content, 
+                            DATE_FORMAT(c.createdAt, '%b %d, %Y, %l:%i %p') AS commentDate,
                             u.userId, u.firstName, u.lastName
                         FROM comments c, user u
                         WHERE c.postId = ?
