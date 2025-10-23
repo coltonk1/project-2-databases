@@ -8,6 +8,7 @@ package uga.menik.csx370.controllers;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +17,9 @@ import org.springframework.web.servlet.ModelAndView;
 import uga.menik.csx370.models.ExpandedPost;
 import uga.menik.csx370.models.Post;
 import uga.menik.csx370.utility.Utility;
+import uga.menik.csx370.models.User;
+import uga.menik.csx370.services.PostService;
+import uga.menik.csx370.services.UserService;
 
 /**
  * Handles /bookmarks and its sub URLs.
@@ -27,6 +31,14 @@ import uga.menik.csx370.utility.Utility;
 @Controller
 @RequestMapping("/bookmarks")
 public class BookmarksController {
+    private final PostService postService;
+    private final UserService userService;
+
+    @Autowired
+    public BookmarksController(PostService postService, UserService userService) {
+        this.postService = postService;
+        this.userService = userService;
+    }
 
     /**
      * /bookmarks URL itself is handled by this.
@@ -37,11 +49,20 @@ public class BookmarksController {
         // ModelAndView class enables initializing one and populating placeholders
         // in the template using Java objects assigned to named properties.
         ModelAndView mv = new ModelAndView("posts_page");
-
+        
         // Following line populates sample data.
         // You should replace it with actual data from the database.
-        List<ExpandedPost> posts = new ArrayList<>();
+        List<Post> posts = new ArrayList<>();
+        try {
+            User user = userService.getLoggedInUser();
+            posts = postService.getBookmarkedPosts(user.getUserId());
+        } catch (Exception e) {
+            e.printStackTrace();
+            mv.addObject("errorMessage", "Failed to load bookmarked posts: " + e.getMessage());
+        }
         mv.addObject("posts", posts);
+        mv.addObject("isNoContent", posts == null || posts.isEmpty());    
+        
 
         // If an error occured, you can set the following property with the
         // error message to show the error message to the user.

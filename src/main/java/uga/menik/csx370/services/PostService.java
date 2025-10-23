@@ -299,7 +299,7 @@ public class PostService {
             pstmt.setString(1, userId);
             pstmt.setString(2, postId);
             pstmt.executeUpdate();
-        }
+        } 
     }
 
     /**
@@ -318,6 +318,9 @@ public class PostService {
             pstmt.setString(1, userId);
             pstmt.setString(2, postId);
             pstmt.executeUpdate();
+        } catch (java.sql.SQLIntegrityConstraintViolationException e) {
+            // when user already bookmarked post
+            System.out.println(e.getMessage());
         }
     }
 
@@ -362,6 +365,53 @@ public class PostService {
                 return rs.next();
             }
         }
+    }
+
+    /**
+     * Returns posts bookmarked by the given user (for bookmarks page).
+     */
+    public List<Post> getBookmarkedPosts(String userId) throws SQLException {
+        List<Post> output = new ArrayList<>();
+
+        final String sql = """
+            SELECT p.postId, p.body AS content,
+                DATE_FORMAT(p.createdAt, '%b %d, %Y, %l:%i %p') AS postDate,
+                u.userId, u.firstName, u.lastName,
+                (SELECT COUNT(*) FROM likes l WHERE l.postId = p.postId) AS heartsCount,
+                (SELECT COUNT(*) FROM comments c WHERE c.postId = p.postId) AS commentsCount
+            FROM posts p
+            JOIN user u ON u.userId = p.authorId
+            JOIN bookmarks b ON b.postId = p.postId
+            WHERE b.userId = ?
+            ORDER BY p.createdAt DESC
+        """;
+
+        try (
+            Connection conn = dataSource.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql)
+        ) {
+            pstmt.setString(1, userId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    String authorId = rs.getString("userId");
+                    String firstName = rs.getString("firstName");
+                    String lastName = rs.getString("lastName");
+                    String postDate = rs.getString("postDate");
+                    String postId = rs.getString("postId");
+                    String content = rs.getString("content");
+                    int heartsCount = rs.getInt("heartsCount");
+                    int commentsCount = rs.getInt("commentsCount");
+
+                    User author = new User(authorId, firstName, lastName);
+                    boolean isHearted = isPostLikedByUser(userId, postId);
+                    boolean isBookmarked = true; // since these are bookmarks for this user
+                    Post post = new Post(postId, content, postDate, author, heartsCount, commentsCount, isHearted, isBookmarked);
+                    output.add(post);
+                }
+            }
+        }
+
+        return output;
     }
 
 }

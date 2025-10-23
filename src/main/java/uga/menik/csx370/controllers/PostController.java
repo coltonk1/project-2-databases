@@ -160,7 +160,7 @@ public class PostController {
             return "redirect:/post/" + postId;
         } catch (Exception e) {
             e.printStackTrace();
-            String message = URLEncoder.encode("Failed to (un)bookmark the post. Please try again."  + e.getMessage(), StandardCharsets.UTF_8);
+            String message = URLEncoder.encode("Failed to (un)bookmark the post. Please try again. "  + e.getMessage(), StandardCharsets.UTF_8);
             return "redirect:/post/" + postId + "?error=" + message;
         }
     }
