@@ -56,7 +56,11 @@ public class HomeController {
         
         try {
             // Get posts from followed users.
-            posts = postService.getPostsFromFollowedUsers(userService.getLoggedInUser().getUserId());
+            final String loggedInUserId = userService.getLoggedInUser().getUserId();
+            posts = postService.getPostsFromFollowedUsers(loggedInUserId);
+            posts.addAll(postService.getPostsByUserId(loggedInUserId, loggedInUserId));
+
+            posts.sort((a, b) -> b.getPostDate().compareTo(a.getPostDate()));
             mv.addObject("posts", posts);
         } catch (SQLException e) {
             // Set error message if there was an issue.
