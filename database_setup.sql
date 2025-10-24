@@ -34,7 +34,8 @@ create table if not exists hashtags (
     postId int not null,
     tag varchar(100) not null,
     primary key (postId, tag),
-    foreign key (postId) references posts(postId)
+    foreign key (postId) references posts(postId),
+    constraint tag_min_length check (char_length(trim(tag)) >= 1)
 );
 
 -- Create comments table.

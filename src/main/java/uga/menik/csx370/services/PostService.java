@@ -105,6 +105,61 @@ public class PostService {
         }
     }
 
+    /**
+     * Returns posts that contain any of the given hashtags (case-insensitive).
+     * If tags is empty returns an empty list.
+     */
+    public List<Post> getPostsByHashtags(String[] tags, String loggedInUserId) throws SQLException {
+        
+        // Build the "?, ?, ?" clause with the correct number of placeholders
+        StringBuilder inClause = new StringBuilder();
+        for (int i = 0; i < tags.length; i++) {
+            if (i > 0) inClause.append(",");
+            inClause.append("?");
+        } 
+
+        // use string concatenation to insert the inClause into the SQL query instead
+        final String sql = "SELECT p.postId, p.body AS content, "
+                + "DATE_FORMAT(p.createdAt, '%b %d, %Y, %l:%i %p') AS postDate, "
+                + "u.userId, u.firstName, u.lastName, "
+                + "(SELECT COUNT(*) FROM likes l WHERE l.postId = p.postId) AS heartsCount, "
+                + "(SELECT COUNT(*) FROM comments c WHERE c.postId = p.postId) AS commentsCount "
+                + "FROM posts p "
+                + "JOIN user u ON u.userId = p.authorId "
+                + "JOIN hashtags h ON h.postId = p.postId "
+                + "WHERE h.tag IN (" + inClause.toString() + ") "
+                + "GROUP BY p.postId "
+                + "ORDER BY p.createdAt DESC";
+
+        try (
+            Connection conn = dataSource.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql)
+        ) {
+            // set cleaned tags parameters
+            for (int i = 0; i < tags.length; i++) {
+                pstmt.setString(i + 1, tags[i]);
+            }
+            return getPostsFromSet(pstmt, loggedInUserId);
+        }
+    }
+
+    /*
+     * Checks if the searched hashtag exists in the hashtags table.
+     */
+    public boolean isHashtagInTable(String tag) throws SQLException {
+        final String sql = "SELECT 1 FROM hashtags WHERE tag = ? LIMIT 1";
+
+        try (
+            Connection conn = dataSource.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql)
+        ) {
+            pstmt.setString(1, tag);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }   
+
     private List<Post> getPostsFromSet(PreparedStatement pstmt, String loggedInUserId) throws SQLException {
         List<Post> output = new ArrayList<>();
         
