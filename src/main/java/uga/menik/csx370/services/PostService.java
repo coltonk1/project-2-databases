@@ -33,7 +33,8 @@ public class PostService {
      */
     public List<Post> getPostsFromFollowedUsers(String loggedInUserId) throws SQLException {
         final String sql = """
-            SELECT p.postId, p.body AS content,
+        
+            (SELECT p.postId, p.body AS content,
                 DATE_FORMAT(p.createdAt, '%b %d, %Y, %l:%i %p') AS postDate,
                 u.userId, u.firstName, u.lastName,
                 (SELECT COUNT(*) FROM likes l WHERE l.postId = p.postId) AS heartsCount,
@@ -42,7 +43,20 @@ public class PostService {
             JOIN user u ON u.userId = p.authorId
             JOIN follows f ON f.userIdFollowed = p.authorId
             WHERE f.userId = ?
-            ORDER BY p.createdAt DESC
+            ORDER BY p.createdAt DESC)
+            UNION ALL
+            (SELECT 2p.postId, 2p.body AS content,
+                DATE_FORMAT(2p.createdAt, '%b %d, %Y, %l:%i %p') AS postDate,
+                2u.userId, 2u.firstName, 2u.lastName,
+                (SELECT COUNT(*) FROM likes l WHERE l.postId = 2p.postId) AS heartsCount,
+                (SELECT COUNT(*) FROM comments c WHERE c.postId = 2p.postId) AS commentsCount
+            FROM repost r
+            JOIN posts 2p ON 2p.postId = r.originalPostId
+            JOIN user 2u ON 2u.userId = 2p.authorId
+            JOIN follows f ON f.userIdFollowed = r.userId
+            WHERE f.userId = ?
+            AND r.userId <> ?
+            ORDER BY 2p.createdAt DESC)   
         """;
         
         try (
@@ -50,6 +64,8 @@ public class PostService {
             PreparedStatement pstmt = conn.prepareStatement(sql)
         ) {
             pstmt.setString(1, loggedInUserId);
+            pstmt.setString(2, loggedInUserId); // reposts: follows
+            pstmt.setString(3, loggedInUserId);
             return getPostsFromSet(pstmt, loggedInUserId);
         }
     }
@@ -76,6 +92,10 @@ public class PostService {
         ) {
             pstmt.setString(1, userId);
             return getPostsFromSet(pstmt, userIdOfLoggedIn);
+
+
+
+
         }
     }
 
@@ -181,9 +201,10 @@ public class PostService {
                 // Check if the logged in user has hearted or bookmarked this post.
                 boolean isHearted = isPostLikedByUser(loggedInUserId, postId);
                 boolean isBookmarked = isPostBookmarkedByUser(loggedInUserId, postId);
+                boolean isReposted = isPostRepostedByUser(loggedInUserId, postId);
 
                 // Create Post object and add to output list.
-                Post post = new Post(postId, content, postDate, author, heartsCount, commentsCount, isHearted, isBookmarked);
+                Post post = new Post(postId, content, postDate, author, heartsCount, commentsCount, isHearted, isBookmarked, isReposted );
                 output.add(post);
             }
         }
@@ -316,6 +337,7 @@ public class PostService {
                     // Check if the logged in user has hearted or bookmarked this post.
                     boolean isHearted = isPostLikedByUser(loggedInUserId, postId);
                     boolean isBookmarked = isPostBookmarkedByUser(loggedInUserId, postId);
+                    boolean isReposted = isPostRepostedByUser(loggedInUserId, postId); // new
 
                     // Create ExpandedPost object and add to output list.
                     ExpandedPost expandedPost = new ExpandedPost(
@@ -327,7 +349,9 @@ public class PostService {
                         comments.size(),
                         isHearted,
                         isBookmarked,
+                        isReposted, // new
                         comments
+
                     );
                     expandedPosts.add(expandedPost);
                 }
@@ -468,5 +492,42 @@ public class PostService {
         }
     }
 
+           // Repost service methods can be added here.
+            public boolean isPostRepostedByUser(String userId, String postId) throws SQLException {
+            final String sql = "SELECT 1 FROM repost WHERE userId = ? AND originalPostId = ? ";
+            try (Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, userId);
+                ps.setString(2, postId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    return rs.next();
+                }
+            }
+        }
+
+        public void addRepost(String userId, String postId) throws SQLException {
+            final String sql = """
+                INSERT INTO repost (userId, originalPostId, createdAt)
+                VALUES (?, ?, NOW())
+            """;
+            try (Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, userId);
+                ps.setString(2, postId);
+                ps.executeUpdate();
+            }
+        }
+        public void removeRepost(String userId, String postId) throws SQLException {
+            final String sql = """
+                DELETE FROM repost
+                WHERE userId = ? AND originalPostId = ?
+            """;
+            try (Connection conn = dataSource.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, userId);
+                ps.setString(2, postId);
+                ps.executeUpdate();
+            }
+        }   
 
 }

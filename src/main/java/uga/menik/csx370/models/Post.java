@@ -36,6 +36,11 @@ public class Post extends BasicPost {
      */
     protected boolean isShowComents;
 
+    /** 
+     * Flag to specify whether the post is a repost.
+     */
+    private final boolean isReposted;
+
     /**
      * Constructs a Post with specified details including information from BasicPost.
      *
@@ -47,14 +52,16 @@ public class Post extends BasicPost {
      * @param commentsCount  the number of comments the post has received
      * @param isHearted      whether the post is hearted by the current user
      * @param isBookmarked   whether the post is bookmarked by the current user
+     * @param isReposted       whether the post is a repost
      */
-    public Post(String postId, String content, String postDate, User user, int heartsCount, int commentsCount, boolean isHearted, boolean isBookmarked) {
+    public Post(String postId, String content, String postDate, User user, int heartsCount, int commentsCount, boolean isHearted, boolean isBookmarked, boolean isReposted) {
         super(postId, content, postDate, user);
         this.heartsCount = heartsCount;
         this.commentsCount = commentsCount;
         this.isHearted = isHearted;
         this.isBookmarked = isBookmarked;
         this.isShowComents = false;
+        this.isReposted = isReposted;
     }
 
     /**
@@ -91,5 +98,14 @@ public class Post extends BasicPost {
      */
     public boolean isBookmarked() {
         return isBookmarked;
+    }
+
+    /**
+     * Returns whether the post is a repost.
+     *
+     * @return true if the post is a repost, false otherwise
+     */
+    public boolean isReposted() {
+        return isReposted;
     }
 }

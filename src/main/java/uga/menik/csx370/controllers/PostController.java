@@ -42,8 +42,8 @@ public class PostController {
      * This function handles the /post/{postId} URL.
      * This handlers serves the web page for a specific post.
      * Note there is a path variable {postId}.
-     * An example URL handled by this function looks like below:
-     * http://localhost:8081/post/1
+     * An exampleelow:
+     * http://localhost:8081/post/ URL handled by this function looks like b1
      * The above URL assigns 1 to postId.
      * 
      * See notes from HomeController.java regardig error URL parameter.
@@ -163,4 +163,30 @@ public class PostController {
         }
     }
 
-}
+     @GetMapping("/{postId}/repost/{isAdd}")
+     public String addOrRemoveRepost(@PathVariable("postId") String postId,
+            @PathVariable("isAdd") Boolean isAdd) {
+        System.out.println("The user is attempting add or remove a repost:");
+        System.out.println("\tpostId: " + postId);
+        System.out.println("\tisAdd: " + isAdd);
+        try {
+            final String loggedInUserId = userService.getLoggedInUser().getUserId();
+
+            if (isAdd) postService.addRepost(loggedInUserId, postId);
+            else postService.removeRepost(loggedInUserId, postId);
+
+        } catch (Exception e) {
+            String message = URLEncoder.encode("Failed to (un)repost the post. Please try again.", StandardCharsets.UTF_8);
+            System.out.println("Error (un)reposting post: " + e.getMessage());
+            return "redirect:/post/" + postId + "?error=" + message;
+        }
+
+        return "redirect:/post/" + postId;
+    }
+    
+
+
+
+
+
+} // PostController class
